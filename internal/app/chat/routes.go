@@ -6,11 +6,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func SetUpRoutes(e *echo.Echo) {
-
+func SetUpRoutes(e *echo.Echo, h *Hub) {
 	e.GET("/", HandleHello)
-	e.GET("/ws", HandleWebSocket)
-	e.POST("/rest-sw", Proxy.HandleRestRequest)
+	e.GET("/ws", h.HandleWebSocket)
+	e.POST("/rest-sw", h.HandleRestRequest)
 }
 
 func HandleHello(c echo.Context) error {

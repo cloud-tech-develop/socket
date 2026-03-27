@@ -57,12 +57,26 @@
 
       function sendMessage() {
         const messageInput = document.getElementById("messageInput");
-        const messageContent = messageInput.value;
+        const messageContent = messageInput.value.trim();
 
-        if (messageContent.trim() !== "") {
+        if (messageContent !== "") {
+          let content = messageContent;
+          // Intenta parsear como JSON si parece un objeto o array
+          if (
+            (messageContent.startsWith("{") && messageContent.endsWith("}")) ||
+            (messageContent.startsWith("[") && messageContent.endsWith("]"))
+          ) {
+            try {
+              content = JSON.parse(messageContent);
+            } catch (e) {
+              // Si falla el parseo, lo envía como texto
+              content = messageContent;
+            }
+          }
+
           const message = {
             sender: idUser,
-            content: messageContent,
+            content: content,
           };
 
           socket.send(JSON.stringify(message));
@@ -87,13 +101,30 @@
 
         // Formatea la fecha y hora del mensaje
         const formattedDateTime = formatDate(new Date(message.dateTime));
+
+        let displayContent = message.content;
+        if (typeof message.content === "object" && message.content !== null) {
+          displayContent = `<pre class="bg-black text-green-400 p-2 rounded mt-2 text-xs overflow-x-auto">${JSON.stringify(
+            message.content,
+            null,
+            2
+          )}</pre>`;
+        }
+
         listItem.innerHTML = `<li class="${
           message.sender == idUser ? "bg-green-300" : "bg-gray-200"
-        } p-4 rounded flex justify-between">
-               <span class=" inline-flex w-80 "> <strong>User${
-                 message.sender
-               }:&nbsp;</strong>${message.content}</span>
-               <span class="text-gray-500 text-sm ">${formattedDateTime}</span>
+        } p-4 rounded flex flex-col">
+               <div class="flex justify-between items-start">
+                 <span class="inline-flex"><strong>User${
+                   message.sender
+                 }:&nbsp;</strong></span>
+                 <span class="text-gray-500 text-sm">${formattedDateTime}</span>
+               </div>
+               <div class="mt-1">${
+                 typeof message.content === "object"
+                   ? displayContent
+                   : message.content
+               }</div>
             </li>`;
         messageList.appendChild(listItem);
       }

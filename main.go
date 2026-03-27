@@ -12,7 +12,8 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.CORS())
 
-	chat.SetUpRoutes(e)
+	h := chat.NewHub()
+	chat.SetUpRoutes(e, h)
 
 	port := utils.GetPort()
 	e.Logger.Fatal(e.Start(port))
