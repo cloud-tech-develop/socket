@@ -6,7 +6,5 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    environment:
-      - PORT=${PORT:-8889}
     ports:
       - "${PORT:-8889}:${PORT:-8889}"
