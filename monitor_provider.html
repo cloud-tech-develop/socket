@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Proveedor Simulado</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f1f5f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; }
+        button { background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        #status { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Simulador de Vendedor</h1>
+        <div class="input-group">
+            <label>Provider ID (Opcional):</label>
+            <input type="text" id="providerId" placeholder="Autogenerado">
+        </div>
+        <div class="input-group">
+            <label>Latitud:</label>
+            <input type="number" id="lat" step="0.0001" value="6.2442">
+        </div>
+        <div class="input-group">
+            <label>Longitud:</label>
+            <input type="number" id="lng" step="0.0001" value="-75.5812">
+        </div>
+        <div class="input-group">
+            <label>Estado:</label>
+            <input type="text" id="status-text" value="En ruta">
+        </div>
+        <button onclick="connect()">Conectar y Reportar</button>
+        <div id="status">Desconectado</div>
+    </div>
+
+    <script>
+        let ws;
+        function connect() {
+            const id = document.getElementById('providerId').value;
+            const monitorId = new URLSearchParams(window.location.search).get('monitorId') || 'default';
+            const url = `ws://${window.location.host}/monitor?role=provider&id=${id}&monitorId=${monitorId}`;
+            
+            ws = new WebSocket(url);
+            ws.onopen = () => {
+                document.getElementById('status').textContent = 'CONECTADO - Reportando cada 3s';
+                document.getElementById('status').style.color = 'green';
+                startReporting();
+            };
+            ws.onclose = () => {
+                document.getElementById('status').textContent = 'DESCONECTADO';
+                document.getElementById('status').style.color = 'red';
+            };
+        }
+
+        function startReporting() {
+            setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    // Simular pequeños movimientos
+                    const lat = parseFloat(document.getElementById('lat').value) + (Math.random() - 0.5) * 0.001;
+                    const lng = parseFloat(document.getElementById('lng').value) + (Math.random() - 0.5) * 0.001;
+                    document.getElementById('lat').value = lat.toFixed(4);
+                    document.getElementById('lng').value = lng.toFixed(4);
+
+                    const data = {
+                        location: { lat, lng },
+                        status: document.getElementById('status-text').value,
+                        battery: Math.floor(Math.random() * 100) + '%'
+                    };
+                    ws.send(JSON.stringify({ data }));
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Dashboard - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 20px;
+        }
+        h1 { font-weight: 600; margin: 0; }
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            background: #334155;
+        }
+        .status-connected { background: var(--success); }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            border: 1px solid #334155;
+            transition: transform 0.2s;
+        }
+        .card:hover { transform: translateY(-4px); }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .provider-id { font-weight: 600; color: var(--primary); }
+        .last-update { font-size: 0.75rem; color: #94a3b8; }
+        .data-point {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .label { color: #94a3b8; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 100px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Monitor de Vendedores</h1>
+                <p>Estado en tiempo real de todos los conectados</p>
+            </div>
+            <div id="ws-status" class="status-badge">Desconectado</div>
+        </header>
+
+        <div id="monitor-grid" class="grid">
+            <!-- Los proveedores aparecerán aquí -->
+            <div class="empty-state">Esperando conexiones de proveedores...</div>
+        </div>
+    </div>
+
+    <script>
+        const monitorId = new URLSearchParams(window.location.search).get('monitorId') || 'default';
+        const ws = new WebSocket(`ws://${window.location.host}/monitor?role=viewer&monitorId=${monitorId}`);
+        const providerCards = new Map();
+        const grid = document.getElementById('monitor-grid');
+        const wsStatus = document.getElementById('ws-status');
+
+        ws.onopen = () => {
+            wsStatus.textContent = 'Conectado';
+            wsStatus.classList.add('status-connected');
+        };
+
+        ws.onclose = () => {
+            wsStatus.textContent = 'Desconectado';
+            wsStatus.classList.remove('status-connected');
+        };
+
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            console.log('Mensaje:', msg);
+
+            if (msg.type === 'full_state') {
+                grid.innerHTML = '';
+                for (const [id, data] of Object.entries(msg.data)) {
+                    updateProviderCard(id, data);
+                }
+            } else if (msg.type === 'update' || msg.type === 'connect') {
+                if (grid.querySelector('.empty-state')) grid.innerHTML = '';
+                updateProviderCard(msg.providerId, msg.data);
+            } else if (msg.type === 'disconnect') {
+                removeProviderCard(msg.providerId);
+            }
+        };
+
+        function updateProviderCard(id, data) {
+            let card = providerCards.get(id);
+            if (!card) {
+                card = document.createElement('div');
+                card.className = 'card';
+                card.id = `provider-${id}`;
+                grid.appendChild(card);
+                providerCards.set(id, card);
+            }
+
+            const dataHtml = data ? Object.entries(data).map(([k, v]) => `
+                <div class="data-point">
+                    <span class="label">${k}:</span>
+                    <span>${typeof v === 'object' ? JSON.stringify(v) : v}</span>
+                </div>
+            `).join('') : '<p>Sin datos reportados</p>';
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="provider-id">${id.substring(0, 8)}...</span>
+                    <span class="last-update">${new Date().toLocaleTimeString()}</span>
+                </div>
+                <div class="card-content">
+                    ${dataHtml}
+                </div>
+            `;
+        }
+
+        function removeProviderCard(id) {
+            const card = providerCards.get(id);
+            if (card) {
+                card.style.opacity = '0.5';
+                card.querySelector('.card-header').innerHTML += ' <span style="color:var(--danger)">(OFF)</span>';
+                setTimeout(() => {
+                    card.remove();
+                    providerCards.delete(id);
+                    if (providerCards.size === 0) {
+                        grid.innerHTML = '<div class="empty-state">Esperando conexiones...</div>';
+                    }
+                }, 5000); // Dar un tiempo antes de quitarlo
+            }
+        }
+    </script>
+</body>
+</html>
