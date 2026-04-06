@@ -9,4 +9,4 @@ services:
     env_file:
       - .env_ventas
     ports:
-      - "${PORT}:${PORT}"
+      - "8888:8888"
